@@ -1,9 +1,12 @@
 import requests
 import os
-from _util import verify_survey_id, verify_user_id
+from ._util import verify_survey_id, verify_user_id, load_qualtrics_config_file
 
 class QualtricsAPIAgent:
-    def __init__(self,api_token=None,data_center='ca1'):
+    def __init__(self,api_token=None,data_center='yul1',path_to_config=os.path.expanduser('~/.qltrcs_config')):
+        if api_token is None:
+            api_token, data_center = load_qualtrics_config_file(path_to_config=path_to_config)
+            
         self.api_token = api_token
         self.data_center = data_center
         
@@ -234,3 +237,4 @@ class QualtricsAPIAgent:
     def get_user_id(self,user_id):
         response = self.get_user(user_id)
         return response.json()['result']['id']
+    
