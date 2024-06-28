@@ -181,7 +181,7 @@ class QualtricsAPIAgent:
         progress_id = kickoff_request.json()['result']['progressId']
         check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
         while check_request.json()['result']['status'] != 'complete':
-            time.sleep(0.1)
+            time.sleep(0.5)
             check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
         file_id = check_request.json()['result']['fileId']
         download_request = self.send_api_request(f'{export_path}/{file_id}/file','GET')
