@@ -168,6 +168,7 @@ class QualtricsAPIAgent:
         Returns:
         - string containing the survey responses in the specified format.
         """
+        import time
         assert format in ['csv','json','ndjson','spss','tsv','xml']
         
         payload = {'format':format}
@@ -180,6 +181,7 @@ class QualtricsAPIAgent:
         progress_id = kickoff_request.json()['result']['progressId']
         check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
         while check_request.json()['result']['status'] != 'complete':
+            time.sleep(0.1)
             check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
         file_id = check_request.json()['result']['fileId']
         download_request = self.send_api_request(f'{export_path}/{file_id}/file','GET')
@@ -237,4 +239,8 @@ class QualtricsAPIAgent:
     def get_user_id(self,user_id):
         response = self.get_user(user_id)
         return response.json()['result']['id']
+    
+    def spawn_user_agent(self, user_id):
+        user_token = self.get_user_api_token(user_id)
+        return QualtricsAPIAgent(api_token=user_token,data_center=self.data_center)
     
