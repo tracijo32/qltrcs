@@ -29,3 +29,10 @@ def load_qualtrics_config_file(path_to_config=os.path.expanduser('~/.qltrcs_conf
         raise ValueError('api_token not found in config file')
         
     return api_token, data_center
+
+class QualtricsException(Exception):
+    def __init__(self, response):
+        self.response = response
+        error_message = response.json()['meta']['error']['errorMessage']
+        self.message = f"Qualtrics API Error {response.status_code}: {response.reason} - {error_message}"
+        super().__init__(self.message)
