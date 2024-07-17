@@ -42,8 +42,6 @@ class QualtricsAPIAgent:
         Returns:
         - requests.Response: The response object returned by the requests library.
         """
-        if retry > max_retries:
-            raise Exception('Max retries exceeded.')
         if isinstance(headers,dict):
             headers = {**self.headers,**headers}
         else:
@@ -56,7 +54,7 @@ class QualtricsAPIAgent:
         response = requests.request(method,url,headers=headers,**kwargs)
         if response.status_code in [500,503,504] and retry <= max_retries:
             return self.send_api_request(path,method,headers=headers,max_retries=max_retries,retry=retry+1,delay=delay,**kwargs)
-        if response.status_code == 429:
+        if response.status_code == 429 and retry <= max_retries:
             wait_time = delay*(2**retry)
             time.sleep(wait_time)
             return self.send_api_request(path,method,headers=headers,max_retries=max_retries,retry=retry+1,delay=delay,**kwargs)
@@ -182,14 +180,10 @@ class QualtricsAPIAgent:
         progress_id = kickoff_request.json()['result']['progressId']
         check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
         
-        wait_time = 0.25
+        wait_time = 0.5
         while check_request.json()['result']['status'] != 'complete':
             time.sleep(wait_time)
-            try:
-                check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
-            except QualtricsError as e:
-                if not e.response.status_code == 
-            wait_time *= 2
+            check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
         file_id = check_request.json()['result']['fileId']
         
         
