@@ -1,6 +1,7 @@
 import requests
 import os
-from ._util import verify_survey_id, verify_user_id, load_qualtrics_config_file
+import time
+from ._util import verify_survey_id, verify_user_id, load_qualtrics_config_file, QualtricsException
 
 class QualtricsAPIAgent:
     def __init__(self,api_token=None,data_center='yul1',path_to_config=os.path.expanduser('~/.qltrcs_config')):
@@ -25,7 +26,7 @@ class QualtricsAPIAgent:
             "X-API-TOKEN": self.api_token,
             }
         
-    def send_api_request(self,path,method,headers=None,timeout=0.5,**kwargs):
+    def send_api_request(self,path,method,headers=None,retry=0,max_retries=5,delay=10,**kwargs):
         """
         Generic method for sending requests to the Qualtrics API.
         
@@ -41,7 +42,8 @@ class QualtricsAPIAgent:
         Returns:
         - requests.Response: The response object returned by the requests library.
         """
-        import time
+        if retry > max_retries:
+            raise Exception('Max retries exceeded.')
         if isinstance(headers,dict):
             headers = {**self.headers,**headers}
         else:
@@ -51,15 +53,15 @@ class QualtricsAPIAgent:
             url = self.url_prefix + path
         else:
             url = path
-        timeout = min(2.,max(float(timeout),0.5))
         response = requests.request(method,url,headers=headers,**kwargs)
-        if response.status_code in [500,503,504] and timeout < 10.0:
-            time.sleep(timeout)
-            timeout *= 2
-            return self.send_api_request(path,method,headers=headers,timeout=timeout,**kwargs)
+        if response.status_code in [500,503,504] and retry <= max_retries:
+            return self.send_api_request(path,method,headers=headers,max_retries=max_retries,retry=retry+1,delay=delay,**kwargs)
+        if response.status_code == 429:
+            wait_time = delay*(2**retry)
+            time.sleep(wait_time)
+            return self.send_api_request(path,method,headers=headers,max_retries=max_retries,retry=retry+1,delay=delay,**kwargs)
         if not response.ok:
-            msg = response.json()['meta']['error']['errorMessage']
-            raise Exception(f"Qualtrics API Response {response.status_code}: {response.reason} - {msg}")
+            raise QualtricsException(response)
         return response
     
     def whoami(self):
@@ -105,7 +107,6 @@ class QualtricsAPIAgent:
         surveys = response.json()['result']['elements']
         nextPage = response.json()['result']['nextPage']
         return surveys, nextPage
-        
     
     def list_users(self):
         """
@@ -180,10 +181,18 @@ class QualtricsAPIAgent:
         
         progress_id = kickoff_request.json()['result']['progressId']
         check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
+        
+        wait_time = 0.25
         while check_request.json()['result']['status'] != 'complete':
-            time.sleep(0.5)
-            check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
+            time.sleep(wait_time)
+            try:
+                check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
+            except QualtricsError as e:
+                if not e.response.status_code == 
+            wait_time *= 2
         file_id = check_request.json()['result']['fileId']
+        
+        
         download_request = self.send_api_request(f'{export_path}/{file_id}/file','GET')
 
         import zipfile
