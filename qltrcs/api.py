@@ -4,12 +4,13 @@ import time
 from ._util import verify_survey_id, verify_user_id, load_qualtrics_config_file, QualtricsException
 
 class QualtricsAPIAgent:
-    def __init__(self,api_token=None,data_center='yul1',path_to_config=os.path.expanduser('~/.qltrcs_config')):
+    def __init__(self,api_token=None,data_center=None): 
         if api_token is None:
-            api_token, data_center = load_qualtrics_config_file(path_to_config=path_to_config)
-            
+            api_token = os.environ.get('QUALTRICS_API_TOKEN')
+        if data_center is None:
+            data_center = os.environ.get('QUALTRICS_DATA_CENTER')
         self.api_token = api_token
-        self.data_center = data_center
+        self.data_csenter = data_center
         
     @property
     def url_prefix(self):
