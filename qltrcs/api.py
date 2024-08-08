@@ -10,7 +10,7 @@ class QualtricsAPIAgent:
         if data_center is None:
             data_center = os.environ.get('QUALTRICS_DATA_CENTER')
         self.api_token = api_token
-        self.data_csenter = data_center
+        self.data_center = data_center
         
     @property
     def url_prefix(self):
