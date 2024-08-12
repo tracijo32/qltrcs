@@ -1,7 +1,7 @@
 import requests
 import os
 import time
-from ._util import verify_survey_id, verify_user_id, load_qualtrics_config_file, QualtricsException
+from ._util import verify_survey_id, verify_user_id, QualtricsException
 
 class QualtricsAPIAgent:
     def __init__(self,api_token=None,data_center=None): 
@@ -154,7 +154,7 @@ class QualtricsAPIAgent:
                 nextPage = response.json()['result']['nextPage']
             return surveys
         
-    def export_survey(self,survey_id,format='csv',filename=None):
+    def export_responses(self,survey_id,filename=None,format='csv'):
         """
         Export Survey: Export the responses for a survey in a specified format.
         
@@ -176,18 +176,26 @@ class QualtricsAPIAgent:
         assert verify_survey_id(survey_id)
             
         export_path = f'/surveys/{survey_id}/export-responses'
+        start_time = time.time()
         kickoff_request = self.send_api_request(export_path,'POST',json=payload)
-        
         progress_id = kickoff_request.json()['result']['progressId']
+
+        wait_time = 4.0
+        time.sleep(wait_time)
         check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
-        
-        wait_time = 0.5
-        while check_request.json()['result']['status'] != 'complete':
+
+        while check_request.json()['result']['status'] == 'inProgress':
+            progress = check_request.json()['result']['percentComplete']
+            elapsed_time = time.time()-start_time
+            if progress > 0:
+                wait_time = elapsed_time / progress * (100-progress) * 1.1
+                wait_time = min(120,max(1, wait_time))
             time.sleep(wait_time)
             check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
+        
+        if check_request.json()['result']['status'] == 'failed':
+            raise QualtricsException('Failed to export reponses to file.')
         file_id = check_request.json()['result']['fileId']
-        
-        
         download_request = self.send_api_request(f'{export_path}/{file_id}/file','GET')
 
         import zipfile
