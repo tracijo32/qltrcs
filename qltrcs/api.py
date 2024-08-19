@@ -154,7 +154,7 @@ class QualtricsAPIAgent:
                 nextPage = response.json()['result']['nextPage']
             return surveys
         
-    def export_responses(self,survey_id,filename=None,format='csv'):
+    def export_responses(self,survey_id,filename=None,format='csv',**kwargs):
         """
         Export Survey: Export the responses for a survey in a specified format.
         
@@ -164,6 +164,7 @@ class QualtricsAPIAgent:
             Valid values are: 'csv', 'json', 'ndjson', 'spss', 'tsv', or 'xml'.
         - filename [optional, type: string]: The name of the file to save the exported survey responses to.
             If None, the response will be returned as a string.
+        - kwargs: Additional keyword arguments to pass to the send_api_request method.
             
         Returns:
         - string containing the survey responses in the specified format.
@@ -177,12 +178,12 @@ class QualtricsAPIAgent:
             
         export_path = f'/surveys/{survey_id}/export-responses'
         start_time = time.time()
-        kickoff_request = self.send_api_request(export_path,'POST',json=payload)
+        kickoff_request = self.send_api_request(export_path,'POST',json=payload,**kwargs)
         progress_id = kickoff_request.json()['result']['progressId']
 
         wait_time = 4.0
         time.sleep(wait_time)
-        check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
+        check_request = self.send_api_request(f'{export_path}/{progress_id}','GET',**kwargs)
 
         while check_request.json()['result']['status'] == 'inProgress':
             progress = check_request.json()['result']['percentComplete']
@@ -191,12 +192,12 @@ class QualtricsAPIAgent:
                 wait_time = elapsed_time / progress * (100-progress) * 1.1
                 wait_time = min(120,max(1, wait_time))
             time.sleep(wait_time)
-            check_request = self.send_api_request(f'{export_path}/{progress_id}','GET')
+            check_request = self.send_api_request(f'{export_path}/{progress_id}','GET',**kwargs)
         
         if check_request.json()['result']['status'] == 'failed':
             raise QualtricsException('Failed to export reponses to file.')
         file_id = check_request.json()['result']['fileId']
-        download_request = self.send_api_request(f'{export_path}/{file_id}/file','GET')
+        download_request = self.send_api_request(f'{export_path}/{file_id}/file','GET',**kwargs)
 
         import zipfile
         import io
